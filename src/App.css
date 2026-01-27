@@ -1,38 +1,263 @@
-.App {
+.subtitle {
+  font-size: 1rem;
+  opacity: 0.9;
+  margin-top: 0.5rem;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* Updated Highlight Cards (Watch Time, Avg View, etc.) */
+.highlight {
+  /* High-contrast brand gradient */
+  background: linear-gradient(135deg, #1A7EF7 0%, #083a75 100%) !important;
+  color: white !important;
+
+  /* Modern card geometry */
+  padding: 25px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+
+  /* Soft blue-tinted shadow to make it pop */
+  box-shadow: 0 10px 25px rgba(26, 126, 247, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  /* Smooth transition for hover effects */
+  transition: transform 0.2s ease;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.highlight:hover {
+  transform: translateY(-5px);
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+.highlight h3 {
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin-top: 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.highlight .stat-number {
+  color: white !important;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 10px 0;
+}
+
+.highlight .stat-subtext {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 0.85rem;
+}
+
+.highlight h3 {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.highlight .stat-number {
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+.highlight .stat-subtext {
+  color: rgba(255, 255, 255, 0.85);
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+.unit {
+  font-size: 1.2rem;
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.stat-subtext {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 3rem;
+}
+
+.chart-container h2 {
+  color: #333;
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.chart-description {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+/* Subscriber Conversion Section */
+.conversion-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.conversion-section h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.conversion-content {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 30px;
+  align-items: center;
+  /* Changed from 'start' to 'center' */
+}
+
+.conversion-card {
+  margin: 0;
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #F7931A 0%, #d97e0f 100%) !important;
+  color: white;
+}
+
+.conversion-card h3 {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.conversion-card .stat-number {
+  color: white;
+}
+
+.conversion-card .stat-subtext {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.conversion-chart {
+  padding-left: 20px;
+  padding-top: 10px;
+  /* Add space at the top for the Y-axis label */
+}
+
+.conversion-chart h3 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: #555;
+  font-size: 1.1em;
+}
+
+/* Responsive: stack on smaller screens */
+@media (max-width: 768px) {
+  .conversion-content {
+    grid-template-columns: 1fr;
   }
-  to {
-    transform: rotate(360deg);
+}
+
+h1 {
+  text-align: center;
+}
+
+/* Basic Stats Cards */
+.basic-stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin: 30px 0;
+}
+
+.basic-stat-card {
+  background: white;
+  padding: 30px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-top: 4px solid transparent;
+}
+
+.basic-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Brand color variants */
+.blue-card {
+  border-top-color: #1A7EF7;
+}
+
+.orange-card {
+  border-top-color: #F7931A;
+}
+
+.basic-stat-card h3 {
+  font-size: 0.9em;
+  color: #666;
+  margin: 0 0 15px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.basic-stat-card .stat-number {
+  font-size: 2.8em;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+  line-height: 1;
+}
+
+/* Responsive: stack on smaller screens */
+@media (max-width: 768px) {
+  .basic-stats-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Chart header with title and controls */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.chart-header h2 {
+  margin: 0;
+}
+
+/* Time range selector dropdown */
+.time-range-selector {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.time-range-selector:hover {
+  border-color: #1A7EF7;
+}
+
+.time-range-selector:focus {
+  outline: none;
+  border-color: #1A7EF7;
+  box-shadow: 0 0 0 2px rgba(26, 126, 247, 0.1);
+}
+
+/* Responsive: stack on smaller screens */
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .time-range-selector {
+    width: 100%;
   }
 }

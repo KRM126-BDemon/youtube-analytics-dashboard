@@ -1,70 +1,233 @@
-# Getting Started with Create React App
+# YouTube Analytics Dashboard
+## 📊 Project Overview
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Serverless analytics platform that collects YouTube channel metrics daily, calculates custom performance indicators not available in YouTube Studio, and generates weekly AI-powered marketing insights—all. I'm a marketing professional developing my cloud skills to stretch into technical marketing. This project was created with guidance from LLM's such as Claude.
 
-## Available Scripts
+**Live Demo:** [Coming Soon - Deployment in Progress]
 
-In the project directory, you can run:
+**The Business Problem:** YouTube Studio provides basic analytics, but lacks critical metrics for data-driven content strategy:
+- Subscriber conversion efficiency (subscribers gained per 1,000 views)
+- Content longevity tracking (which videos remain valuable 30+ days post-publication)
+- Traffic source analysis by content type (Shorts vs long-form)
+- Evergreen content scoring for long-term growth
 
-### `npm start`
+I created a new YouTube channel called [The Guitar Circuit](https://www.youtube.com/@TheGuitarCircuit/shorts), which offers educational guitar lesson videos. This dashboard collects data from that channel to provide unique analytics and actionable insights to help it grow.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**The Solution:** This automated dashboard collects data via YouTube APIs, stores it in DynamoDB, and surfaces actionable insights through a React interface—enabling strategic content decisions based on real performance data.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## 🏗️ Architecture
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│ EventBridge │────▶│   Lambda     │────▶│  DynamoDB   │
+│  (Daily)    │     │  Collector   │     │  (3 Tables) │
+└─────────────┘     └──────────────┘     └─────────────┘
+                           │                      │
+                           ▼                      ▼
+                    ┌──────────────┐     ┌──────────────┐
+                    │   Bedrock    │     │ API Gateway  │
+                    │ (AI Insights)│     │   (REST)     │
+                    └──────────────┘     └──────────────┘
+                                                  │
+                                                  ▼
+                                         ┌──────────────┐
+                                         │    React     │
+                                         │  Dashboard   │
+                                         └──────────────┘
+```
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🚀 Features
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Custom Metrics Not Available in YouTube Studio
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+#### 1. **Subscriber Conversion Rate**
+- Measures subscribers gained per 1,000 views 
+- 30-day trend analysis to identify improving/declining conversion
+- Helps optimize content for subscriber growth vs. pure view count
 
-### `npm run eject`
+#### 2. **Evergreen Content Scoring**
+- Tracks view snapshots at days 7, 30, and 60 post-publication
+- Calculates percentage of views occurring after day 30
+- Identifies content with long-term value vs. flash-in-the-pan videos
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+#### 3. **Traffic Source Analysis by Content Type**
+- Compares Shorts (< 2 min) vs. Workouts (2+ min) traffic patterns
+- Shows Browse Features, Search, Suggested Videos breakdown
+- Data coverage metrics indicate analysis completeness (90%+ = comprehensive)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+#### 4. **Watch Time Efficiency**
+- (Total watch time in seconds) / total views
+- Identifies which content keeps viewers engaged longest
+- Key metric for YouTube algorithm favorability
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+#### 5. **AI-Powered Marketing Insights**
+- Weekly automated analysis using Claude Sonnet 4.5 via Bedrock
+- Identifies growth opportunities based on performance trends
+- Provides actionable recommendations in plain language
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Data Quality Transparency
 
-## Learn More
+In real-world analytics, platform APIs never align perfectly. Rather than forcing artificial reconciliation that introduces errors, this dashboard documents sources and limitations—demonstrating data literacy and stakeholder communication skills.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+---
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 🛠️ Technology Stack
 
-### Code Splitting
+### Backend (AWS)
+- **Lambda (Python 3.12):** Data collection, API endpoints
+- **DynamoDB:** NoSQL storage (3 tables)
+- **API Gateway:** REST API with CORS-enabled endpoints
+- **EventBridge:** Daily data collection trigger (2 AM PST)
+- **Bedrock:** AI insights generation (Claude Sonnet 4.5)
+- **IAM:** Least-privilege role permissions
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Frontend
+- **React 18:** Component-based UI
+- **Recharts:** Line, bar, and pie chart visualizations
+- **Custom CSS:** Responsive design with brand colors
 
-### Analyzing the Bundle Size
+### External APIs
+- **YouTube Data API v3:** Channel and video metadata
+- **YouTube Analytics API:** Advanced metrics (watch time, traffic sources)
+- **OAuth 2.0:** Secure authentication with refresh tokens
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+---
 
-### Making a Progressive Web App
+## 📂 Project Structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```
+youtube-dashboard/
+├── src/
+│   ├── App.js                    # Main dashboard component
+│   ├── App.css                   # Global styles
+│   ├── VideoScorecard.js         # Video performance table
+│   ├── VideoScorecard.css
+│   ├── ContentLongevity.js       # Evergreen content tracking
+│   ├── ContentLongevity.css
+│   ├── TrafficSources.js         # Traffic analysis component
+│   ├── TrafficSources.css
+│   ├── AIInsights.js             # AI-generated insights
+│   └── AIInsights.css
+├── public/
+├── package.json
+└── README.md
 
-### Advanced Configuration
+lambda/
+├── YouTubeDataCollector.py       # Daily data collection + AI insights
+├── GetYouTubeStats.py            # Channel metrics endpoint
+├── GetVideoPerformance.py        # Video data endpoint
+└── GetYouTubeInsights.py         # AI insights endpoint
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+infrastructure/
+└── get_youtube_token.py          # OAuth token generator
+```
 
-### Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## 💰 Cost Breakdown
 
-### `npm run build` fails to minify
+| Service | Monthly Cost | Notes |
+|---------|-------------|-------|
+| Lambda | ~$0.50 | 4 functions, daily execution |
+| DynamoDB | ~$1-2 | Pay-per-request, ~10k reads/month |
+| API Gateway | ~$0.50 | REST API calls |
+| Bedrock | ~$0.10 | Weekly AI insights (Claude Sonnet 4.5) |
+| S3/CloudFront | ~$1 | Static hosting (when deployed) |
+| **Total** | **~$3.50-4.50** | Production analytics platform |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+**Cost Optimization Strategies:**
+- Serverless architecture eliminates idle compute costs
+- DynamoDB on-demand pricing (vs. provisioned capacity)
+- EventBridge schedule (vs. always-running cron)
+- Weekly (not daily) AI insights generation
+
+---
+
+## 📈 Roadmap
+
+### Completed ✅
+- Serverless AWS architecture with Lambda, DynamoDB, API Gateway, EventBridge
+- YouTube API integration with OAuth authentication
+- Weekly AI-powered marketing insights using Amazon Bedrock
+- React dashboard with charts and video performance scorecard
+- Subscriber conversion rate tracking with 30-day trends
+- Evergreen content scoring with milestone snapshots
+- Traffic source analysis with data coverage metrics
+- Data quality transparency features
+
+---
+
+## 🐛 Troubleshooting
+
+### Lambda Fails to Collect Data
+**Symptom:** No new data in DynamoDB after 2 AM PST  
+**Solution:**
+1. Check CloudWatch Logs for error details
+2. Verify EventBridge rule is enabled
+3. Confirm IAM role has DynamoDB + Bedrock permissions
+
+### API Returns CORS Errors
+**Symptom:** Browser console shows CORS policy errors  
+**Solution:**
+1. Verify CORS enabled on all API Gateway resources
+2. Check OPTIONS method is configured
+3. Ensure Access-Control-Allow-Origin header is set
+
+### OAuth HTTP 400: Bad Request
+**Symptom:** Lambda logs show "invalid_grant" error  
+**Solution:**
+1. Refresh token has expired
+2. Run `python3 get_youtube_token.py` to generate new token
+3. Update Lambda environment variable `YOUTUBE_REFRESH_TOKEN`
+
+### Conversion Rate Shows 0.00
+**Symptom:** Subscriber conversion displays as 0.00  
+**Solution:**
+- Need at least 2 days of data (today + yesterday) for calculation
+- First run shows 0 because there's no yesterday data to compare
+
+### Traffic Sources Missing for Some Videos
+**Symptom:** Some videos show "No data available"  
+**Solution:**
+- YouTube doesn't provide traffic data for all videos immediately
+- New videos (< 24-48 hours) typically lack traffic data
+- Very low-view videos may not have breakdown available
+- Check data coverage percentage in summary cards
+
+---
+
+## 🎯 Why This Project Stands Out
+
+**1. Real Business Problem + Technical Solution**
+- A tutorial project—built to solve an actual need (YouTube channel growth)
+- Demonstrates ability to identify problems and architect solutions
+
+**2. Production-Ready Code**
+- Error handling, logging, data validation
+- Cost optimization (~$4/month vs. $50+ for EC2)
+- Security best practices (IAM, OAuth, encryption)
+
+**3. Data Quality Transparency**
+- Acknowledges real-world analytics challenges (API discrepancies)
+- Shows data coverage metrics and source labeling
+- Demonstrates stakeholder communication skills
+
+**4. Full-Stack Capabilities**
+- AWS backend (5 services)
+- React frontend with visualizations
+- API integrations (YouTube, Bedrock)
+- DevOps (EventBridge scheduling, IAM)
+
+**5. AI Integration**
+- Practical use of generative AI (weekly insights via Bedrock)
+- Not just "AI for AI's sake"—adds real value
+
+### Quantifiable Results
+- **Cost Efficiency:** $4/month for enterprise-grade analytics
+- **Automation:** 100% automated daily data collection and weekly AI insights
+- **Data Coverage:** Tracking 90%+ of videos with traffic source data
+- **Response Time:** API responses under 500ms
+- **Scalability:** Architecture handles unlimited channel growth with no code changes
