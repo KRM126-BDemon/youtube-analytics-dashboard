@@ -3,7 +3,7 @@
 
 Serverless analytics platform that collects YouTube channel metrics daily, calculates custom performance indicators not available in YouTube Studio, and generates weekly AI-powered marketing insights—all. I'm a marketing professional developing my cloud skills to stretch into technical marketing. This project was created with guidance from LLM's such as Claude.
 
-**Live Demo:** [Coming Soon - Deployment in Progress]
+**Live Demo:** [dl4ii479k5yyn.cloudfront.net](http://theguitarcircuit-youtubedashboard.s3-website-us-west-1.amazonaws.com)
 
 **The Business Problem:** YouTube Studio provides basic analytics, but lacks critical metrics for data-driven content strategy:
 - Subscriber conversion efficiency (subscribers gained per 1,000 views)
