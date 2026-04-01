@@ -1,14 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './ContentLongevity.css';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const ContentLongevity = ({ videos }) => {
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const videosPerPage = 5;
+
     // Filter videos that have evergreen scores (30+ days old)
-    const evergreenVideos = videos.filter(v => v.evergreenScore !== undefined && v.evergreenScore !== null);
+    // Show ALL videos with scores, including 0% - we want to see the full picture
+    const evergreenVideos = videos.filter(v =>
+        v.evergreenScore !== undefined &&
+        v.evergreenScore !== null
+    );
 
     // Separate by content type
-    const shorts = evergreenVideos.filter(v => v.durationSeconds < 120);
-    const workouts = evergreenVideos.filter(v => v.durationSeconds >= 120);
+    const shorts = evergreenVideos.filter(v => v.durationSeconds < 180);
+    const workouts = evergreenVideos.filter(v => v.durationSeconds >= 180);
+
+    // Helper function to categorize evergreen scores
+    const categorizeScore = (score) => {
+        const numScore = parseFloat(score);
+        if (numScore >= 20) return { label: '🔥 Strong', color: '#2ecc71', category: 'strong' };
+        if (numScore >= 5) return { label: '✅ Moderate', color: '#3498db', category: 'moderate' };
+        if (numScore >= 1) return { label: '⚠️ Low', color: '#f39c12', category: 'low' };
+        return { label: '❌ None', color: '#e74c3c', category: 'none' };
+    };
 
     // Calculate averages
     const avgShortScore = shorts.length > 0
@@ -19,16 +36,34 @@ const ContentLongevity = ({ videos }) => {
         ? (workouts.reduce((sum, v) => sum + parseFloat(v.evergreenScore), 0) / workouts.length).toFixed(1)
         : 0;
 
-    // Prepare chart data - top 10 evergreen videos
-    const chartData = evergreenVideos
+    // Count videos by category
+    const categoryBreakdown = {
+        strong: evergreenVideos.filter(v => parseFloat(v.evergreenScore) >= 20).length,
+        moderate: evergreenVideos.filter(v => parseFloat(v.evergreenScore) >= 5 && parseFloat(v.evergreenScore) < 20).length,
+        low: evergreenVideos.filter(v => parseFloat(v.evergreenScore) >= 1 && parseFloat(v.evergreenScore) < 5).length,
+        none: evergreenVideos.filter(v => parseFloat(v.evergreenScore) < 1).length
+    };
+
+    // Prepare chart data - all evergreen videos sorted
+    const allEvergreenChartData = evergreenVideos
         .sort((a, b) => parseFloat(b.evergreenScore) - parseFloat(a.evergreenScore))
-        .slice(0, 10)
-        .map(v => ({
-            title: v.title.length > 30 ? v.title.substring(0, 30) + '...' : v.title,
-            score: parseFloat(v.evergreenScore),
-            type: v.durationSeconds < 120 ? 'Short' : 'Workout',
-            views: v.views
-        }));
+        .map(v => {
+            const category = categorizeScore(v.evergreenScore);
+            return {
+                title: v.title.length > 30 ? v.title.substring(0, 30) + '...' : v.title,
+                score: parseFloat(v.evergreenScore),
+                type: v.durationSeconds < 180 ? 'Short' : 'Workout',
+                views: v.views,
+                categoryLabel: category.label,
+                color: category.color
+            };
+        });
+
+    // Calculate pagination
+    const totalPages = Math.ceil(allEvergreenChartData.length / videosPerPage);
+    const indexOfLastVideo = currentPage * videosPerPage;
+    const indexOfFirstVideo = indexOfLastVideo - videosPerPage;
+    const chartData = allEvergreenChartData.slice(indexOfFirstVideo, indexOfLastVideo);
 
     // Comparison data
     const comparisonData = [
@@ -39,14 +74,14 @@ const ContentLongevity = ({ videos }) => {
     if (evergreenVideos.length === 0) {
         return (
             <div className="longevity-section">
-                <h2>Content Longevity Analysis</h2>
+                <h2 style={{ textAlign: 'center' }}>Content Longevity & Evergreen Scores</h2>
                 <div className="longevity-pending">
                     <p>📊 <strong>Evergreen tracking is active!</strong></p>
-                    <p>Data will appear once your videos reach 30 days old. The system is capturing view milestones at day 7 and day 30 to calculate which content has lasting appeal.</p>
+                    <p>Data will appear once your videos reach 30 days old. The system is capturing view milestones at day 7 and day 30 to calculate which content has lasting appeal beyond the initial viral window.</p>
                     <p className="longevity-explanation">
-                        <strong>What this will show: Videos with high evergreen scores continue attracting views long after publication,
-                            indicating valuable, searchable content that compounds over time. This helps identify which topics and formats
-                            have the most long-term growth potential. </strong>
+                        <strong>What you'll see when data arrives:</strong> Videos will be categorized as 🔥 Strong (20%+), ✅ Moderate (5-20%), ⚠️ Low (1-5%), or ❌ None (0-1%).
+                        For guitar lessons, <strong>Shorts should show 0-5%</strong> (normal - they're viral content), but <strong>Workouts should aim for 10-30%+</strong>
+                        (searchable lessons that YouTube recommends long-term). If your lessons show 0-5%, that's a signal to improve SEO and content quality.
                     </p>
                 </div>
             </div>
@@ -55,7 +90,7 @@ const ContentLongevity = ({ videos }) => {
 
     return (
         <div className="longevity-section">
-            <h2>Content Longevity Analysis</h2>
+            <h2 style={{ textAlign: 'center' }}>Content Longevity & Evergreen Scores</h2>
             <p className="longevity-subtitle">
                 Tracking which videos continue generating views beyond their first 30 days
             </p>
@@ -69,95 +104,135 @@ const ContentLongevity = ({ videos }) => {
                 </div>
 
                 <div className="longevity-card highlight">
-                    <h3>Shorts Evergreen</h3>
-                    <p className="stat-number">{avgShortScore}%</p>
-                    <p className="stat-subtext">{shorts.length} videos analyzed</p>
+                    <h3>🔥 Strong Evergreen</h3>
+                    <p className="stat-number">{categoryBreakdown.strong}</p>
+                    <p className="stat-subtext">20%+ staying power</p>
                 </div>
 
                 <div className="longevity-card highlight">
-                    <h3>Workouts Evergreen</h3>
-                    <p className="stat-number">{avgWorkoutScore}%</p>
-                    <p className="stat-subtext">{workouts.length} videos analyzed</p>
+                    <h3>✅ Moderate</h3>
+                    <p className="stat-number">{categoryBreakdown.moderate}</p>
+                    <p className="stat-subtext">5-20% staying power</p>
+                </div>
+
+                <div className="longevity-card">
+                    <h3>⚠️ Low / ❌ None</h3>
+                    <p className="stat-number">{categoryBreakdown.low + categoryBreakdown.none}</p>
+                    <p className="stat-subtext">Under 5%</p>
                 </div>
             </div>
 
             {/* Charts */}
             <div className="longevity-charts">
+                {/* What This Means Box */}
+                <div className="evergreen-explainer">
+                    <h4>📊 What "Evergreen Score" Means</h4>
+                    <p><strong>Formula:</strong> (Current Views - Views at Day 30) ÷ Current Views × 100</p>
+                    <p><strong>Translation:</strong> The percentage of a video's total views that came <em>after</em> the first 30 days.</p>
+                    <p><strong>Example:</strong> A video with 6% evergreen score got 94% of its views in the first month, then only 6% after that.</p>
+                    <p style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                        <strong>Your targets:</strong> Shorts = 0-5% (normal), Workouts = 10-30%+ (goal)
+                    </p>
+                </div>
+
                 {/* Top Evergreen Videos */}
-                <div className="chart-container">
-                    <h3>Top Evergreen Videos</h3>
+                <div className="chart-container full-width">
+                    <h3>All Videos Ranked by Evergreen Score</h3>
                     <p className="chart-description">
-                        Videos with the highest percentage of views coming after day 30
+                        🔥 Strong (20%+) | ✅ Moderate (5-20%) | ⚠️ Low (1-5%) | ❌ None (0-1%) — Page {currentPage} of {totalPages}
                     </p>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={chartData} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" label={{ value: 'Evergreen Score (%)', position: 'bottom' }} />
-                            <YAxis dataKey="title" type="category" width={150} />
+                            <YAxis dataKey="title" type="category" width={200} tick={{ fontSize: 11 }} />
                             <Tooltip
                                 formatter={(value, name, props) => {
-                                    if (name === 'score') return [`${value}%`, 'Evergreen Score'];
+                                    if (name === 'score') return [`${value.toFixed(1)}%`, 'Evergreen Score'];
                                     return [value, name];
                                 }}
-                                labelFormatter={(label) => `Video: ${label}`}
+                                labelFormatter={(label, payload) => {
+                                    if (payload && payload[0]) {
+                                        return `${payload[0].payload.categoryLabel} - ${payload[0].payload.type}: ${label}`;
+                                    }
+                                    return label;
+                                }}
                             />
                             <Bar dataKey="score" name="Evergreen Score">
                                 {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.type === 'Short' ? '#8884d8' : '#82ca9d'} />
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
 
-                {/* Shorts vs Workouts Comparison */}
-                {shorts.length > 0 && workouts.length > 0 && (
-                    <div className="chart-container">
-                        <h3>Content Type Comparison</h3>
-                        <p className="chart-description">
-                            Average evergreen performance by content format
-                        </p>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={comparisonData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="type" />
-                                <YAxis label={{ value: 'Avg Evergreen Score (%)', angle: -90, position: 'insideLeft' }} />
-                                <Tooltip
-                                    formatter={(value) => `${value}%`}
-                                    labelFormatter={(label) => `${label}`}
-                                />
-                                <Legend />
-                                <Bar dataKey="avgScore" name="Evergreen Score" fill="#8884d8" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="pagination-controls">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className="pagination-btn"
+                            >
+                                Previous
+                            </button>
+                            {[...Array(totalPages)].map((_, index) => (
+                                <button
+                                    key={index + 1}
+                                    onClick={() => setCurrentPage(index + 1)}
+                                    className={`pagination-btn ${currentPage === index + 1 ? 'active' : ''}`}
+                                >
+                                    {index + 1}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className="pagination-btn"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Explanation */}
             <div className="longevity-explanation">
-                <h3>📈 Understanding Evergreen Scores</h3>
+                <h3>📈 Understanding Evergreen Scores for Your Channel</h3>
+
                 <p>
                     <strong>What it measures:</strong> The percentage of total views that came <em>after</em> the first 30 days.
-                    Higher scores indicate content that continues attracting new viewers long after publication.
+                    Only videos 30+ days old have scores.
                 </p>
+
                 <p>
-                    <strong>Why it matters:</strong> Evergreen content compounds over time, providing sustained growth without constant
-                    new uploads. Videos with 40%+ evergreen scores are exceptional performers that should inform your content strategy.
+                    <strong>Score Categories:</strong>
                 </p>
+                <ul style={{ marginLeft: '20px', lineHeight: '1.8' }}>
+                    <li>🔥 <strong>Strong (20%+):</strong> Exceptional evergreen content - these videos continue getting discovered months later</li>
+                    <li>✅ <strong>Moderate (5-20%):</strong> Decent long-term performance - steady trickle of views</li>
+                    <li>⚠️ <strong>Low (1-5%):</strong> Minimal staying power - most views came in first month</li>
+                    <li>❌ <strong>None (0-1%):</strong> No longevity - viral burst then died</li>
+                </ul>
+
                 <p>
-                    <strong>How it's calculated:</strong> (Current Views - Views at Day 30) ÷ Current Views × 100
+                    <strong>What's NORMAL for guitar lessons:</strong>
                 </p>
+                <ul style={{ marginLeft: '20px', lineHeight: '1.8' }}>
+                    <li><strong>Shorts:</strong> Expected to show 0-5% evergreen. They're designed for viral bursts, not long-term discovery. Don't worry if Shorts are red/orange.</li>
+                    <li><strong>Workouts (guitar lessons):</strong> Should aim for 10-30%+ evergreen if optimized for search. If your lessons are showing 0-5%, it means YouTube isn't recommending them after the first month - that's a RED FLAG to improve titles, descriptions, or content quality.</li>
+                </ul>
+
                 <p className="longevity-insight">
-                    {avgWorkoutScore > avgShortScore && workouts.length > 0 ? (
-                        <span>💡 <strong>Insight:</strong> Your workout videos ({avgWorkoutScore}% avg) show stronger evergreen performance
-                            than Shorts ({avgShortScore}% avg), suggesting long-form guitar lessons have better long-term discovery potential.</span>
-                    ) : avgShortScore > avgWorkoutScore && shorts.length > 0 ? (
-                        <span>💡 <strong>Insight:</strong> Your Shorts ({avgShortScore}% avg) show stronger evergreen performance
-                            than workouts ({avgWorkoutScore}% avg), suggesting bite-sized content continues attracting viewers over time.</span>
+                    {workouts.length > 0 && avgWorkoutScore < 10 ? (
+                        <span>⚠️ <strong>Action Needed:</strong> Your workout videos average {avgWorkoutScore}% evergreen - below the 10-30% target for guitar lessons. This suggests they're not being found in search or suggested videos long-term. Consider: (1) More searchable titles with specific techniques/songs, (2) Better descriptions with timestamps and keywords, (3) Stronger hooks in first 30 seconds to boost retention.</span>
+                    ) : workouts.length > 0 && avgWorkoutScore >= 20 ? (
+                        <span>🔥 <strong>You're crushing it!</strong> Your workout videos average {avgWorkoutScore}% evergreen - well above the 10-30% target. YouTube is actively recommending your lessons months after upload. Double down on whatever topics/formats these winning videos use!</span>
+                    ) : workouts.length > 0 ? (
+                        <span>✅ <strong>On track:</strong> Your workout videos average {avgWorkoutScore}% evergreen - within the healthy 10-30% range for guitar lessons. Keep optimizing titles and descriptions to push this higher.</span>
                     ) : (
-                        <span>💡 <strong>Insight:</strong> Both content formats show similar evergreen performance. Continue monitoring
-                            as more data accumulates to identify clear patterns.</span>
+                        <span>⏳ <strong>Not enough data yet:</strong> Need more workout videos to reach 30 days old before meaningful patterns emerge. Keep publishing and check back in 2-4 weeks.</span>
                     )}
                 </p>
             </div>

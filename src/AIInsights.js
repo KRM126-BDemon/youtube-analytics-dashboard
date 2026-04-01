@@ -29,17 +29,6 @@ function AIInsights({ insights }) {
                     <p key={index} className="insight-paragraph">{paragraph}</p>
                 ))}
             </div>
-
-            <div className="insights-stats">
-                <div className="stat-item">
-                    <span className="stat-label">Subscribers at analysis:</span>
-                    <span className="stat-value">{insights.subscribers}</span>
-                </div>
-                <div className="stat-item">
-                    <span className="stat-label">Total views at analysis:</span>
-                    <span className="stat-value">{insights.totalViews}</span>
-                </div>
-            </div>
         </div>
     );
 }

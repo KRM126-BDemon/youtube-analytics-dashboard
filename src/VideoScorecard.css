@@ -40,6 +40,44 @@
 
 .video-table {
     overflow-x: auto;
+    margin-bottom: 3rem;
+}
+
+.video-table h3 {
+    color: #333;
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+}
+
+.table-note {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+    margin: 0.5rem 0 1rem 0;
+    padding: 0.5rem;
+    background: #fff9e6;
+    border-left: 3px solid #F7931A;
+    border-radius: 4px;
+}
+
+.shorts-table h3::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1.2rem;
+    background: #1A7EF7;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+.workouts-table h3::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1.2rem;
+    background: #F7931A;
+    margin-right: 0.5rem;
+    vertical-align: middle;
 }
 
 table {
@@ -271,6 +309,11 @@ tr:hover {
 
 .page-button:hover:not(:disabled) {
     background: #5568d3;
+}
+
+.page-button.active {
+    background: #1A7EF7;
+    font-weight: bold;
 }
 
 .page-button:disabled {

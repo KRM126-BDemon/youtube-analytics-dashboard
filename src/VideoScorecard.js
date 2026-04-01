@@ -3,28 +3,27 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import './VideoScorecard.css';
 
 function VideoScorecard({ videos, channelAvgDuration }) {
-    const [sortBy, setSortBy] = useState('score'); // 'score', 'views', 'date'
-    const [currentPage, setCurrentPage] = useState(1);
+    const [shortsSortBy, setShortsSortBy] = useState('views'); // 'views', 'date'
+    const [workoutsSortBy, setWorkoutsSortBy] = useState('watchTime'); // 'watchTime', 'views', 'retention', 'evergreen', 'date'
+    const [shortsPage, setShortsPage] = useState(1);
+    const [workoutsPage, setWorkoutsPage] = useState(1);
     const videosPerPage = 10;
+
     if (!videos || videos.length === 0) {
         return <div className="scorecard-container">No video data available</div>;
     }
 
     // Classify videos as Shorts vs Workouts using REAL video duration
     const classifiedVideos = videos.map(video => {
-        // Use actual duration if available, otherwise fall back to estimation
         let videoDuration = 0;
 
         if (video.durationSeconds) {
-            // Use real duration from YouTube API
             videoDuration = video.durationSeconds;
         } else if (video.avgViewDuration && video.avgViewPercentage && video.avgViewPercentage > 0) {
-            // Fall back to estimation if duration not available
             videoDuration = video.avgViewDuration / (video.avgViewPercentage / 100);
         }
 
-        // Classify: Under 2 minutes (120 seconds) = Short, over 2 minutes = Workout
-        const videoType = videoDuration < 120 ? 'Short' : 'Workout';
+        const videoType = videoDuration < 180 ? 'Short' : 'Workout';
 
         return {
             ...video,
@@ -33,7 +32,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
         };
     });
 
-    // Calculate metrics by video type
+    // Separate Shorts and Workouts
     const shorts = classifiedVideos.filter(v => v.videoType === 'Short');
     const workouts = classifiedVideos.filter(v => v.videoType === 'Workout');
 
@@ -44,7 +43,6 @@ function VideoScorecard({ videos, channelAvgDuration }) {
         const avgDuration = videoList.length > 0
             ? videoList.reduce((sum, v) => sum + (v.avgViewDuration || 0), 0) / videoList.length
             : 0;
-        const watchTimePerView = totalViews > 0 ? (totalWatchTime * 60) / totalViews : 0;
 
         return {
             count: videoList.length,
@@ -52,7 +50,6 @@ function VideoScorecard({ videos, channelAvgDuration }) {
             totalWatchTime,
             totalLikes,
             avgDuration: Math.round(avgDuration),
-            watchTimePerView: Math.round(watchTimePerView),
             engagementRate: totalViews > 0 ? ((totalLikes / totalViews) * 100).toFixed(2) : 0
         };
     };
@@ -64,6 +61,14 @@ function VideoScorecard({ videos, channelAvgDuration }) {
 
     const shortsMetrics = calculateMetrics(shorts);
     const workoutsMetrics = calculateMetrics(workouts);
+
+    // Format seconds as m:ss
+    const formatDuration = (seconds) => {
+        if (!seconds) return 'N/A';
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     // Data for Shorts vs Workouts comparison chart
     const comparisonData = [
@@ -89,94 +94,55 @@ function VideoScorecard({ videos, channelAvgDuration }) {
         }
     ];
 
-    // Watch Time Efficiency data (seconds watched per view)
-    // Filter to videos with at least 10 views for statistical significance
-    const MIN_VIEWS_FOR_EFFICIENCY = 10;
-
-    const efficiencyData = classifiedVideos
-        .filter(video => video.views >= MIN_VIEWS_FOR_EFFICIENCY)
-        .map(video => ({
-            title: video.title.substring(0, 30) + '...',
-            fullTitle: video.title,
-            efficiency: video.views > 0 && video.watchTimeMinutes
-                ? Math.round((video.watchTimeMinutes * 60) / video.views)
-                : video.avgViewDuration || 0,
-            type: video.videoType,
-            views: video.views
-        }))
-        .sort((a, b) => b.efficiency - a.efficiency);
-
-    // Original scoring logic
-    const scoredVideos = classifiedVideos.map(video => {
-        let score = 0;
-        let scoreFactors = [];
-
-        const viewScore = video.views ? Math.min((video.views / 100) * 30, 30) : 0;
-        score += viewScore;
-
-        const engagementRate = (video.views > 0 && video.likes) ? (video.likes / video.views) : 0;
-        const engagementScore = engagementRate ? Math.min(engagementRate * 1000, 20) : 0;
-        score += engagementScore;
-
-        const watchScore = video.watchTimeMinutes ? Math.min((video.watchTimeMinutes / 50) * 25, 25) : 0;
-        score += watchScore;
-
-        if (video.avgViewDuration && channelAvgDuration && channelAvgDuration > 0) {
-            const durationRatio = video.avgViewDuration / channelAvgDuration;
-            const durationScore = durationRatio ? Math.min(durationRatio * 25, 25) : 0;
-            score += durationScore;
-
-            if (durationRatio > 1.2) {
-                scoreFactors.push('High retention');
-            } else if (durationRatio < 0.8) {
-                scoreFactors.push('Low retention');
-            }
+    // Build insight string based on retention only
+    // avgViewPercentage = % of the video viewers watched on average
+    const buildInsight = (video) => {
+        if (video.avgViewPercentage) {
+            const pct = Math.round(video.avgViewPercentage);
+            return `Viewers watched ${pct}% of this video on average`;
         }
+        return 'Retention data building...';
+    };
 
-        if (video.avgViewPercentage && video.avgViewPercentage > 50) {
-            scoreFactors.push('Great retention %');
-        }
-        if (video.views > 50) {
-            scoreFactors.push('Good reach');
-        }
-        if (engagementRate > 0.02) {
-            scoreFactors.push('High engagement');
-        }
+    // Process videos — add insight string
+    const processedVideos = classifiedVideos.map(video => ({
+        ...video,
+        insight: buildInsight(video)
+    }));
 
-        const finalScore = isNaN(score) ? 0 : Math.round(score);
-
-        return {
-            ...video,
-            score: finalScore,
-            scoreFactors,
-            engagementRate: engagementRate ? (engagementRate * 100).toFixed(2) : '0.00'
-        };
-    });
-
-    // Get top performer by score (before any sorting)
-    const topVideo = [...scoredVideos].sort((a, b) => b.score - a.score)[0];
-
-    // Sort based on selected option
-    if (sortBy === 'score') {
-        scoredVideos.sort((a, b) => b.score - a.score);
-    } else if (sortBy === 'views') {
-        scoredVideos.sort((a, b) => b.views - a.views);
-    } else if (sortBy === 'date') {
-        scoredVideos.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    // Separate and sort Shorts
+    let sortedShorts = processedVideos.filter(v => v.videoType === 'Short');
+    if (shortsSortBy === 'views') {
+        sortedShorts.sort((a, b) => b.views - a.views);
+    } else if (shortsSortBy === 'date') {
+        sortedShorts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     }
 
-    // Pagination
-    const indexOfLastVideo = currentPage * videosPerPage;
-    const indexOfFirstVideo = indexOfLastVideo - videosPerPage;
-    const currentVideos = scoredVideos.slice(indexOfFirstVideo, indexOfLastVideo);
-    const totalPages = Math.ceil(scoredVideos.length / videosPerPage);
+    // Separate and sort Workouts
+    let sortedWorkouts = processedVideos.filter(v => v.videoType === 'Workout');
+    if (workoutsSortBy === 'watchTime') {
+        sortedWorkouts.sort((a, b) => (b.watchTimeMinutes || 0) - (a.watchTimeMinutes || 0));
+    } else if (workoutsSortBy === 'views') {
+        sortedWorkouts.sort((a, b) => b.views - a.views);
+    } else if (workoutsSortBy === 'retention') {
+        sortedWorkouts.sort((a, b) => (b.avgViewPercentage || 0) - (a.avgViewPercentage || 0));
+    } else if (workoutsSortBy === 'evergreen') {
+        sortedWorkouts.sort((a, b) => (parseFloat(b.evergreenScore) || 0) - (parseFloat(a.evergreenScore) || 0));
+    } else if (workoutsSortBy === 'date') {
+        sortedWorkouts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    }
 
-    const formatDuration = (seconds) => {
-        if (!seconds) return 'N/A';
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
+    // Pagination for Shorts
+    const shortsTotalPages = Math.ceil(sortedShorts.length / videosPerPage);
+    const shortsIndexOfLast = shortsPage * videosPerPage;
+    const shortsIndexOfFirst = shortsIndexOfLast - videosPerPage;
+    const currentShorts = sortedShorts.slice(shortsIndexOfFirst, shortsIndexOfLast);
+
+    // Pagination for Workouts
+    const workoutsTotalPages = Math.ceil(sortedWorkouts.length / videosPerPage);
+    const workoutsIndexOfLast = workoutsPage * videosPerPage;
+    const workoutsIndexOfFirst = workoutsIndexOfLast - videosPerPage;
+    const currentWorkouts = sortedWorkouts.slice(workoutsIndexOfFirst, workoutsIndexOfLast);
 
     return (
         <div className="scorecard-container">
@@ -186,21 +152,24 @@ function VideoScorecard({ videos, channelAvgDuration }) {
             <div className="strategy-overview">
                 <div className="strategy-card">
                     <h4>Shorts ({shortsMetrics.count})</h4>
-                    <p>{shortsMetrics.totalViews} views</p>
-                    <p>{shortsMetrics.totalWatchTime} min watch time</p>
-                    <p className="efficiency-stat">{shortsMetrics.watchTimePerView}s per view</p>
+                    <p>{shortsMetrics.totalViews.toLocaleString()} lifetime views</p>
+                    <p>{shortsMetrics.totalWatchTime.toLocaleString()} min watch time</p>
+
                 </div>
                 <div className="strategy-card">
                     <h4>Workouts ({workoutsMetrics.count})</h4>
-                    <p>{workoutsMetrics.totalViews} views</p>
-                    <p>{workoutsMetrics.totalWatchTime} min watch time</p>
-                    <p className="efficiency-stat">{workoutsMetrics.watchTimePerView}s per view</p>
+                    <p>{workoutsMetrics.totalViews.toLocaleString()} lifetime views</p>
+                    <p>{workoutsMetrics.totalWatchTime.toLocaleString()} min watch time</p>
                 </div>
             </div>
 
             {/* Shorts vs Workouts Comparison Chart */}
             <div className="chart-section">
                 <h3>Shorts vs Workouts Comparison</h3>
+                <p className="chart-description">
+                    Side-by-side totals across both content types. Shorts drive discovery; Workouts build the
+                    watch hours needed for monetization (goal: 4,000 hours = 240,000 minutes).
+                </p>
                 <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={comparisonData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -214,138 +183,190 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                 </ResponsiveContainer>
             </div>
 
-            {/* Watch Time Efficiency Chart */}
-            <div className="chart-section">
-                <h3>Watch Time Efficiency (Seconds per View)</h3>
-                <p className="chart-description">
-                    Videos with 10+ views only • Higher is better - shows which videos keep viewers watching longest
-                </p>
-                {efficiencyData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={400}>
-                        <BarChart data={efficiencyData} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" />
-                            <YAxis dataKey="title" type="category" width={150} />
-                            <Tooltip content={({ payload }) => {
-                                if (payload && payload[0]) {
-                                    return (
-                                        <div className="custom-tooltip">
-                                            <p className="tooltip-title">{payload[0].payload.fullTitle}</p>
-                                            <p className="tooltip-value">{payload[0].value} seconds/view</p>
-                                            <p className="tooltip-type">Type: {payload[0].payload.type}</p>
-                                            <p className="tooltip-type">Views: {payload[0].payload.views}</p>
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            }} />
-                            <Bar dataKey="efficiency" fill="#1A7EF7" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <p className="no-data-message">No videos with 10+ views yet. Keep publishing and check back soon!</p>
-                )}
-            </div>
-
-            {/* Top Performer */}
-            {topVideo && (
-                <div className="top-performer">
-                    <h3>🏆 Top Performer</h3>
-                    <p className="video-title">{topVideo.title}</p>
-                    <div className="top-stats">
-                        <span>Score: {topVideo.score}/100</span>
-                        <span>{topVideo.views} views</span>
-                        <span>{formatDuration(topVideo.avgViewDuration)} avg duration</span>
-                        <span>Type: {topVideo.videoType}</span>
-                    </div>
-                </div>
-            )}
-
-            {/* Video Performance Table */}
-            <div className="video-table">
+            {/* Shorts Table */}
+            <div className="video-table shorts-table">
                 <div className="table-controls">
-                    <h3>All Videos</h3>
+                    <h3>🎯 Shorts Performance (Discovery Funnel)</h3>
                     <div className="sort-controls">
-                        <label htmlFor="sort-select">Sort by: </label>
+                        <label htmlFor="shorts-sort-select">Sort by: </label>
                         <select
-                            id="sort-select"
-                            value={sortBy}
+                            id="shorts-sort-select"
+                            value={shortsSortBy}
                             onChange={(e) => {
-                                setSortBy(e.target.value);
-                                setCurrentPage(1); // Reset to page 1 when sorting changes
+                                setShortsSortBy(e.target.value);
+                                setShortsPage(1);
                             }}
                         >
-                            <option value="score">Top Performing (Score)</option>
                             <option value="views">Most Views</option>
                             <option value="date">Recently Published</option>
                         </select>
                     </div>
                 </div>
+
+                {/* Column legend */}
+                <p className="table-note">
+                    📌 <strong>Lifetime Views</strong> = total views since upload &nbsp;|&nbsp;
+                    <strong>Recent Views</strong> = last 28 days (what YouTube is actively pushing) &nbsp;|&nbsp;
+                    <strong>Avg View Duration</strong> = how long viewers watched on average &nbsp;|&nbsp;
+                    <strong>Insight</strong> = % of the video's total length viewers watched (retention)
+                </p>
+
                 <table>
                     <thead>
                         <tr>
                             <th>Title</th>
-                            <th>Type</th>
-                            <th>Video Length</th>
-                            <th>Score</th>
-                            <th>Views</th>
-                            <th>Watch Time</th>
-                            <th>Avg Duration</th>
-                            <th>Efficiency</th>
-                            <th>Insights</th>
+                            <th>Lifetime Views</th>
+                            <th>Recent Views (28d)</th>
+                            <th>Avg View Duration</th>
+                            <th>Insight</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {currentVideos.map(video => {
-                            const efficiency = video.views > 0 && video.watchTimeMinutes
-                                ? Math.round((video.watchTimeMinutes * 60) / video.views)
-                                : video.avgViewDuration || 0;
-
-                            return (
-                                <tr key={video.videoId} className={video.score > 70 ? 'high-score' : video.score > 40 ? 'medium-score' : 'low-score'}>
-                                    <td className="title-cell">{video.title}</td>
-                                    <td className="type-badge">
-                                        <span className={`badge-${video.videoType.toLowerCase()}`}>{video.videoType}</span>
-                                    </td>
-                                    <td>{formatDuration(video.videoDuration)}</td>
-                                    <td className="score-cell">
-                                        <div className="score-badge">{video.score}</div>
-                                    </td>
-                                    <td>{video.views}</td>
-                                    <td>
-                                        {isNewVideo(video.publishedAt) && (video.watchTimeMinutes === 0 || !video.watchTimeMinutes) ? (
-                                            <span className="pending-data">Pending...</span>
-                                        ) : (
-                                            <span>{video.watchTimeMinutes || 0} min</span>
-                                        )}
-                                    </td>
-                                    <td>{formatDuration(video.avgViewDuration)}</td>
-                                    <td>{efficiency}s</td>
-                                    <td className="insights-cell">
-                                        {video.scoreFactors.length > 0 ? video.scoreFactors.join(', ') : 'Building data...'}
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                        {currentShorts.map(video => (
+                            <tr key={video.videoId}>
+                                <td className="title-cell">{video.title}</td>
+                                <td>{(video.views || 0).toLocaleString()}</td>
+                                <td>
+                                    {isNewVideo(video.publishedAt) && !video.recentViews ? (
+                                        <span className="pending-data">Pending...</span>
+                                    ) : (
+                                        (video.recentViews || 0).toLocaleString()
+                                    )}
+                                </td>
+                                <td>{formatDuration(video.avgViewDuration)}</td>
+                                <td className="insights-cell">{video.insight}</td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
-                {totalPages > 1 && (
+
+                {/* Shorts Pagination */}
+                {shortsTotalPages > 1 && (
                     <div className="pagination">
                         <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
+                            onClick={() => setShortsPage(prev => Math.max(prev - 1, 1))}
+                            disabled={shortsPage === 1}
                             className="page-button"
                         >
                             Previous
                         </button>
-
-                        <span className="page-info">
-                            Page {currentPage} of {totalPages}
-                        </span>
-
+                        {[...Array(shortsTotalPages)].map((_, index) => (
+                            <button
+                                key={index + 1}
+                                onClick={() => setShortsPage(index + 1)}
+                                className={`page-button ${shortsPage === index + 1 ? 'active' : ''}`}
+                            >
+                                {index + 1}
+                            </button>
+                        ))}
                         <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
+                            onClick={() => setShortsPage(prev => Math.min(prev + 1, shortsTotalPages))}
+                            disabled={shortsPage === shortsTotalPages}
+                            className="page-button"
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Workouts Table */}
+            <div className="video-table workouts-table">
+                <div className="table-controls">
+                    <h3>🎸 Workout Performance (Monetization Engine)</h3>
+                    <div className="sort-controls">
+                        <label htmlFor="workouts-sort-select">Sort by: </label>
+                        <select
+                            id="workouts-sort-select"
+                            value={workoutsSortBy}
+                            onChange={(e) => {
+                                setWorkoutsSortBy(e.target.value);
+                                setWorkoutsPage(1);
+                            }}
+                        >
+                            <option value="watchTime">Most Watch Time</option>
+                            <option value="views">Most Views</option>
+                            <option value="retention">Best Retention</option>
+                            <option value="evergreen">Highest Evergreen</option>
+                            <option value="date">Recently Published</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Column legend */}
+                <p className="table-note">
+                    📌 <strong>Lifetime Views</strong> = total views since upload &nbsp;|&nbsp;
+                    <strong>Recent Views</strong> = last 28 days &nbsp;|&nbsp;
+                    <strong>Watch Time</strong> = minutes watched in last 28 days (counts toward 4,000hr goal) &nbsp;|&nbsp;
+                    <strong>Evergreen Score</strong> = % of total views that came after day 30 (higher = longer lasting content) &nbsp;|&nbsp;
+                    <strong>Insight</strong> = % of the video's total length viewers watched (retention)
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Lifetime Views</th>
+                            <th>Recent Views (28d)</th>
+                            <th>Watch Time (28d)</th>
+                            <th>Avg View Duration</th>
+                            <th>Evergreen Score</th>
+                            <th>Insight</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {currentWorkouts.map(video => (
+                            <tr key={video.videoId}>
+                                <td className="title-cell">{video.title}</td>
+                                <td>{(video.views || 0).toLocaleString()}</td>
+                                <td>
+                                    {isNewVideo(video.publishedAt) && !video.recentViews ? (
+                                        <span className="pending-data">Pending...</span>
+                                    ) : (
+                                        (video.recentViews || 0).toLocaleString()
+                                    )}
+                                </td>
+                                <td>
+                                    {isNewVideo(video.publishedAt) && (video.watchTimeMinutes === 0 || !video.watchTimeMinutes) ? (
+                                        <span className="pending-data">Pending...</span>
+                                    ) : (
+                                        `${(video.watchTimeMinutes || 0).toLocaleString()} min`
+                                    )}
+                                </td>
+                                <td>{formatDuration(video.avgViewDuration)}</td>
+                                <td>
+                                    {video.evergreenScore !== undefined && video.evergreenScore !== null
+                                        ? `${parseFloat(video.evergreenScore).toFixed(1)}%`
+                                        : 'N/A'}
+                                </td>
+                                <td className="insights-cell">{video.insight}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+                {/* Workouts Pagination */}
+                {workoutsTotalPages > 1 && (
+                    <div className="pagination">
+                        <button
+                            onClick={() => setWorkoutsPage(prev => Math.max(prev - 1, 1))}
+                            disabled={workoutsPage === 1}
+                            className="page-button"
+                        >
+                            Previous
+                        </button>
+                        {[...Array(workoutsTotalPages)].map((_, index) => (
+                            <button
+                                key={index + 1}
+                                onClick={() => setWorkoutsPage(index + 1)}
+                                className={`page-button ${workoutsPage === index + 1 ? 'active' : ''}`}
+                            >
+                                {index + 1}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setWorkoutsPage(prev => Math.min(prev + 1, workoutsTotalPages))}
+                            disabled={workoutsPage === workoutsTotalPages}
                             className="page-button"
                         >
                             Next

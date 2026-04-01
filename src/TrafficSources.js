@@ -26,11 +26,11 @@ function TrafficSources({ videos }) {
     }
 
     // Separate Shorts and Workouts (with and without traffic data)
-    const allShorts = videos.filter(v => v.durationSeconds < 120);
-    const allWorkouts = videos.filter(v => v.durationSeconds >= 120);
+    const allShorts = videos.filter(v => v.durationSeconds < 180);
+    const allWorkouts = videos.filter(v => v.durationSeconds >= 180);
 
-    const shorts = videosWithTraffic.filter(v => v.durationSeconds < 120);
-    const workouts = videosWithTraffic.filter(v => v.durationSeconds >= 120);
+    const shorts = videosWithTraffic.filter(v => v.durationSeconds < 180);
+    const workouts = videosWithTraffic.filter(v => v.durationSeconds >= 180);
 
     // Calculate coverage percentages
     const shortsCoverage = allShorts.length > 0 ? ((shorts.length / allShorts.length) * 100).toFixed(0) : 0;
@@ -105,7 +105,13 @@ function TrafficSources({ videos }) {
         '#1abc9c',  // Turquoise/Teal
         '#34495e',  // Dark Gray/Charcoal
         '#00bcd4',  // Cyan/Light Blue
-        '#795548'   // Brown
+        '#795548',  // Brown
+        '#2ecc71',  // Green
+        '#e67e22',  // Darker Orange
+        '#FFC0CB',  // Pink
+        '#c0392b',  // Darker Red
+        '#16a085',  // Darker Teal
+        '#8e44ad'   // Darker Purple
     ];
 
     // Calculate total views for percentages
@@ -133,19 +139,6 @@ function TrafficSources({ videos }) {
                 <strong> Workouts</strong> should get high "Suggested Videos" (your funnel working). This tells you if your
                 Shorts strategy is driving traffic to Workouts.
             </p>
-
-            <div className="traffic-summary-cards">
-                <div className="traffic-card shorts-card">
-                    <h3>Shorts Traffic</h3>
-                    <p className="traffic-total">{shortsTotal.toLocaleString()} views</p>
-                    <p className="traffic-count">{shorts.length} of {allShorts.length} videos analyzed ({shortsCoverage}% coverage)</p>
-                </div>
-                <div className="traffic-card workouts-card">
-                    <h3>Workouts Traffic</h3>
-                    <p className="traffic-total">{workoutsTotal.toLocaleString()} views</p>
-                    <p className="traffic-count">{workouts.length} of {allWorkouts.length} videos analyzed ({workoutsCoverage}% coverage)</p>
-                </div>
-            </div>
 
             {/* Pie Charts */}
             <div className="traffic-charts-grid">

@@ -95,38 +95,23 @@ function App() {
             <h3>Subscribers</h3>
             <p className="stat-number">{latest.subscribers?.toLocaleString() || 0}</p>
           </div>
-
           <div className="basic-stat-card orange-card">
             <h3>Total Views</h3>
             <p className="stat-number">{latest.totalViews?.toLocaleString() || 0}</p>
           </div>
-
           <div className="basic-stat-card blue-card">
             <h3>Total Videos</h3>
             <p className="stat-number">{latest.totalVideos || 0}</p>
+          </div>
+          <div className="basic-stat-card orange-card">
+            <h3>Recent Views (28d)</h3>
+            <p className="stat-number">{latest.recentViews?.toLocaleString() || 0}</p>
           </div>
         </div>
 
         <p className="chart-description" style={{ fontSize: '0.85rem', opacity: 0.7, fontStyle: 'italic', textAlign: 'center' }}>
           Note: Channel totals and video sums may differ slightly due to YouTube API data refresh timing (typically within 5%).
         </p>
-
-        <div className="stats-grid">
-          <div className="stat-card highlight">
-            <h3>Watch Time (28 days)</h3>
-            <p className="stat-number">{watchTimeHours} <span className="unit">hours</span></p>
-            <p className="stat-subtext">{latest.watchTimeMinutes || 0} minutes</p>
-          </div>
-          <div className="stat-card highlight">
-            <h3>Avg View Duration</h3>
-            <p className="stat-number">{avgDurationFormatted} <span className="unit">min</span></p>
-          </div>
-          <div className="stat-card highlight">
-            <h3>Recent Views (28 days)</h3>
-            <p className="stat-number">{latest.recentViews || 0}</p>
-
-          </div>
-        </div>
 
         {videoData.videos && (
           <VideoScorecard
@@ -161,14 +146,15 @@ function App() {
           <p className="chart-description">
             Shows how effectively your content converts viewers into subscribers over a rolling 28-day window.
             Calculation: (Subscribers gained in last 28 days ÷ Views in last 28 days) × 1,000.
-            Higher numbers mean your content is compelling viewers to subscribe. Industry benchmark: 2-5 for small channels.
+            This measures overall subscriber growth efficiency - higher numbers mean viewers find your content valuable enough to subscribe.
+            For funnel effectiveness (Shorts → Workouts), see the Traffic Sources section below. Industry benchmark: 2-5 for small channels.
           </p>
 
           <div className="conversion-content">
             <div className="stat-card highlight conversion-card">
               <h3>Current Rate</h3>
               <p className="stat-number">{latest.contentDebtRatio?.toFixed(2) || '0.00'}</p>
-              <p className="stat-subtext">Subscribers per 1K views (28-day window)</p>
+              <p className="stat-subtext">Subs gained in last 28 days per 1K views</p>
               {latest.avgConversionRate30d > 0 && latest.contentDebtRatio > 0 && (
                 <p className="stat-subtext">
                   {latest.contentDebtRatio > latest.avgConversionRate30d ? '↑' : '↓'}{' '}
