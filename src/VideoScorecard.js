@@ -2,18 +2,21 @@ import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './VideoScorecard.css';
 
+// A video is a Short if it is 3 minutes (180 seconds) or less; anything longer is Long-form.
+const SHORT_MAX_SECONDS = 180;
+
 function VideoScorecard({ videos, channelAvgDuration }) {
     const [shortsSortBy, setShortsSortBy] = useState('views'); // 'views', 'date'
-    const [workoutsSortBy, setWorkoutsSortBy] = useState('watchTime'); // 'watchTime', 'views', 'retention', 'evergreen', 'date'
+    const [longformSortBy, setLongformSortBy] = useState('watchTime'); // 'watchTime', 'views', 'retention', 'evergreen', 'date'
     const [shortsPage, setShortsPage] = useState(1);
-    const [workoutsPage, setWorkoutsPage] = useState(1);
+    const [longformPage, setLongformPage] = useState(1);
     const videosPerPage = 10;
 
     if (!videos || videos.length === 0) {
         return <div className="scorecard-container">No video data available</div>;
     }
 
-    // Classify videos as Shorts vs Workouts using REAL video duration
+    // Classify videos as Shorts vs Long-form using REAL video duration
     const classifiedVideos = videos.map(video => {
         let videoDuration = 0;
 
@@ -23,7 +26,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
             videoDuration = video.avgViewDuration / (video.avgViewPercentage / 100);
         }
 
-        const videoType = videoDuration < 180 ? 'Short' : 'Workout';
+        const videoType = videoDuration <= SHORT_MAX_SECONDS ? 'Short' : 'Long-form';
 
         return {
             ...video,
@@ -32,16 +35,29 @@ function VideoScorecard({ videos, channelAvgDuration }) {
         };
     });
 
-    // Separate Shorts and Workouts
+    // Separate Shorts and Long-form
     const shorts = classifiedVideos.filter(v => v.videoType === 'Short');
-    const workouts = classifiedVideos.filter(v => v.videoType === 'Workout');
+    const longform = classifiedVideos.filter(v => v.videoType === 'Long-form');
+
+    // Retention numbers: prefer LIFETIME values (the collector saves them for every video, even
+    // ones with no views in the last 28 days). Fall back to the 28-day values for videos the
+    // collector hasn't refreshed yet.
+    const getRetention = (video) => {
+        const duration = video.lifetimeAvgViewDuration > 0 ? video.lifetimeAvgViewDuration
+            : (video.avgViewDuration > 0 ? video.avgViewDuration : null);
+        const percent = video.lifetimeAvgViewPercentage > 0 ? video.lifetimeAvgViewPercentage
+            : (video.avgViewPercentage > 0 ? video.avgViewPercentage : null);
+        return { duration, percent };
+    };
 
     const calculateMetrics = (videoList) => {
         const totalViews = videoList.reduce((sum, v) => sum + (v.views || 0), 0);
         const totalWatchTime = videoList.reduce((sum, v) => sum + (v.watchTimeMinutes || 0), 0);
         const totalLikes = videoList.reduce((sum, v) => sum + (v.likes || 0), 0);
-        const avgDuration = videoList.length > 0
-            ? videoList.reduce((sum, v) => sum + (v.avgViewDuration || 0), 0) / videoList.length
+        // Average only over videos that have retention data, so missing data doesn't drag the average to zero
+        const videosWithDuration = videoList.filter(v => getRetention(v).duration);
+        const avgDuration = videosWithDuration.length > 0
+            ? videosWithDuration.reduce((sum, v) => sum + getRetention(v).duration, 0) / videosWithDuration.length
             : 0;
 
         return {
@@ -60,7 +76,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
     };
 
     const shortsMetrics = calculateMetrics(shorts);
-    const workoutsMetrics = calculateMetrics(workouts);
+    const longformMetrics = calculateMetrics(longform);
 
     // Format seconds as m:ss
     const formatDuration = (seconds) => {
@@ -70,38 +86,43 @@ function VideoScorecard({ videos, channelAvgDuration }) {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Data for Shorts vs Workouts comparison chart
+    // Data for Shorts vs Long-form comparison chart
     const comparisonData = [
         {
             name: 'Total Views',
             Shorts: shortsMetrics.totalViews,
-            Workouts: workoutsMetrics.totalViews
+            LongForm: longformMetrics.totalViews
         },
         {
-            name: 'Total Watch Time (min)',
+            name: 'Watch Time, last 28d (min)',
             Shorts: shortsMetrics.totalWatchTime,
-            Workouts: workoutsMetrics.totalWatchTime
+            LongForm: longformMetrics.totalWatchTime
         },
         {
-            name: 'Avg Duration (sec)',
+            name: 'Avg View Duration (sec)',
             Shorts: shortsMetrics.avgDuration,
-            Workouts: workoutsMetrics.avgDuration
+            LongForm: longformMetrics.avgDuration
         },
         {
             name: 'Total Likes',
             Shorts: shortsMetrics.totalLikes,
-            Workouts: workoutsMetrics.totalLikes
+            LongForm: longformMetrics.totalLikes
         }
     ];
 
     // Build insight string based on retention only
-    // avgViewPercentage = % of the video viewers watched on average
+    // percent = % of the video viewers watched on average (over 100% means rewatches/loops)
     const buildInsight = (video) => {
-        if (video.avgViewPercentage) {
-            const pct = Math.round(video.avgViewPercentage);
-            return `Viewers watched ${pct}% of this video on average`;
+        const { percent } = getRetention(video);
+        if (percent) {
+            const pct = Math.round(percent);
+            return pct > 100
+                ? `Viewers watched ${pct}% of this video on average (rewatches count)`
+                : `Viewers watched ${pct}% of this video on average`;
         }
-        return 'Retention data building...';
+        return isNewVideo(video.publishedAt)
+            ? 'Retention data pending (new video)'
+            : 'No retention data available from YouTube';
     };
 
     // Process videos — add insight string
@@ -118,18 +139,18 @@ function VideoScorecard({ videos, channelAvgDuration }) {
         sortedShorts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     }
 
-    // Separate and sort Workouts
-    let sortedWorkouts = processedVideos.filter(v => v.videoType === 'Workout');
-    if (workoutsSortBy === 'watchTime') {
-        sortedWorkouts.sort((a, b) => (b.watchTimeMinutes || 0) - (a.watchTimeMinutes || 0));
-    } else if (workoutsSortBy === 'views') {
-        sortedWorkouts.sort((a, b) => b.views - a.views);
-    } else if (workoutsSortBy === 'retention') {
-        sortedWorkouts.sort((a, b) => (b.avgViewPercentage || 0) - (a.avgViewPercentage || 0));
-    } else if (workoutsSortBy === 'evergreen') {
-        sortedWorkouts.sort((a, b) => (parseFloat(b.evergreenScore) || 0) - (parseFloat(a.evergreenScore) || 0));
-    } else if (workoutsSortBy === 'date') {
-        sortedWorkouts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    // Separate and sort Long-form
+    let sortedLongform = processedVideos.filter(v => v.videoType === 'Long-form');
+    if (longformSortBy === 'watchTime') {
+        sortedLongform.sort((a, b) => (b.watchTimeMinutes || 0) - (a.watchTimeMinutes || 0));
+    } else if (longformSortBy === 'views') {
+        sortedLongform.sort((a, b) => b.views - a.views);
+    } else if (longformSortBy === 'retention') {
+        sortedLongform.sort((a, b) => (getRetention(b).percent || 0) - (getRetention(a).percent || 0));
+    } else if (longformSortBy === 'evergreen') {
+        sortedLongform.sort((a, b) => (parseFloat(b.evergreenScore) || 0) - (parseFloat(a.evergreenScore) || 0));
+    } else if (longformSortBy === 'date') {
+        sortedLongform.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     }
 
     // Pagination for Shorts
@@ -138,11 +159,11 @@ function VideoScorecard({ videos, channelAvgDuration }) {
     const shortsIndexOfFirst = shortsIndexOfLast - videosPerPage;
     const currentShorts = sortedShorts.slice(shortsIndexOfFirst, shortsIndexOfLast);
 
-    // Pagination for Workouts
-    const workoutsTotalPages = Math.ceil(sortedWorkouts.length / videosPerPage);
-    const workoutsIndexOfLast = workoutsPage * videosPerPage;
-    const workoutsIndexOfFirst = workoutsIndexOfLast - videosPerPage;
-    const currentWorkouts = sortedWorkouts.slice(workoutsIndexOfFirst, workoutsIndexOfLast);
+    // Pagination for Long-form
+    const longformTotalPages = Math.ceil(sortedLongform.length / videosPerPage);
+    const longformIndexOfLast = longformPage * videosPerPage;
+    const longformIndexOfFirst = longformIndexOfLast - videosPerPage;
+    const currentLongform = sortedLongform.slice(longformIndexOfFirst, longformIndexOfLast);
 
     return (
         <div className="scorecard-container">
@@ -153,21 +174,21 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                 <div className="strategy-card">
                     <h4>Shorts ({shortsMetrics.count})</h4>
                     <p>{shortsMetrics.totalViews.toLocaleString()} lifetime views</p>
-                    <p>{shortsMetrics.totalWatchTime.toLocaleString()} min watch time</p>
+                    <p>{shortsMetrics.totalWatchTime.toLocaleString()} min watch time (last 28 days)</p>
 
                 </div>
                 <div className="strategy-card">
-                    <h4>Workouts ({workoutsMetrics.count})</h4>
-                    <p>{workoutsMetrics.totalViews.toLocaleString()} lifetime views</p>
-                    <p>{workoutsMetrics.totalWatchTime.toLocaleString()} min watch time</p>
+                    <h4>Long-form ({longformMetrics.count})</h4>
+                    <p>{longformMetrics.totalViews.toLocaleString()} lifetime views</p>
+                    <p>{longformMetrics.totalWatchTime.toLocaleString()} min watch time (last 28 days)</p>
                 </div>
             </div>
 
-            {/* Shorts vs Workouts Comparison Chart */}
+            {/* Shorts vs Long-form Comparison Chart */}
             <div className="chart-section">
-                <h3>Shorts vs Workouts Comparison</h3>
+                <h3>Shorts vs Long-form Comparison</h3>
                 <p className="chart-description">
-                    Side-by-side totals across both content types. Shorts drive discovery; Workouts build the
+                    Side-by-side totals across both content types. Shorts drive discovery; Long-form videos build the
                     watch hours needed for monetization (goal: 4,000 hours = 240,000 minutes).
                 </p>
                 <ResponsiveContainer width="100%" height={300}>
@@ -178,7 +199,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                         <Tooltip />
                         <Legend />
                         <Bar dataKey="Shorts" fill="#1A7EF7" />
-                        <Bar dataKey="Workouts" fill="#F7931A" />
+                        <Bar dataKey="LongForm" name="Long-form" fill="#F7931A" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -207,8 +228,8 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                 <p className="table-note">
                     📌 <strong>Lifetime Views</strong> = total views since upload &nbsp;|&nbsp;
                     <strong>Recent Views</strong> = last 28 days (what YouTube is actively pushing) &nbsp;|&nbsp;
-                    <strong>Avg View Duration</strong> = how long viewers watched on average &nbsp;|&nbsp;
-                    <strong>Insight</strong> = % of the video's total length viewers watched (retention)
+                    <strong>Avg View Duration</strong> = how long viewers watched on average, lifetime &nbsp;|&nbsp;
+                    <strong>Insight</strong> = % of the video's total length viewers watched (retention, lifetime)
                 </p>
 
                 <table>
@@ -233,7 +254,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                                         (video.recentViews || 0).toLocaleString()
                                     )}
                                 </td>
-                                <td>{formatDuration(video.avgViewDuration)}</td>
+                                <td>{formatDuration(getRetention(video).duration)}</td>
                                 <td className="insights-cell">{video.insight}</td>
                             </tr>
                         ))}
@@ -270,18 +291,18 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                 )}
             </div>
 
-            {/* Workouts Table */}
-            <div className="video-table workouts-table">
+            {/* Long-form Table */}
+            <div className="video-table longform-table">
                 <div className="table-controls">
-                    <h3>🎸 Workout Performance (Monetization Engine)</h3>
+                    <h3>🎸 Long-form Performance (Monetization Engine)</h3>
                     <div className="sort-controls">
-                        <label htmlFor="workouts-sort-select">Sort by: </label>
+                        <label htmlFor="longform-sort-select">Sort by: </label>
                         <select
-                            id="workouts-sort-select"
-                            value={workoutsSortBy}
+                            id="longform-sort-select"
+                            value={longformSortBy}
                             onChange={(e) => {
-                                setWorkoutsSortBy(e.target.value);
-                                setWorkoutsPage(1);
+                                setLongformSortBy(e.target.value);
+                                setLongformPage(1);
                             }}
                         >
                             <option value="watchTime">Most Watch Time</option>
@@ -298,8 +319,9 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                     📌 <strong>Lifetime Views</strong> = total views since upload &nbsp;|&nbsp;
                     <strong>Recent Views</strong> = last 28 days &nbsp;|&nbsp;
                     <strong>Watch Time</strong> = minutes watched in last 28 days (counts toward 4,000hr goal) &nbsp;|&nbsp;
+                    <strong>Avg View Duration</strong> = how long viewers watched on average, lifetime &nbsp;|&nbsp;
                     <strong>Evergreen Score</strong> = % of total views that came after day 30 (higher = longer lasting content) &nbsp;|&nbsp;
-                    <strong>Insight</strong> = % of the video's total length viewers watched (retention)
+                    <strong>Insight</strong> = % of the video's total length viewers watched (retention, lifetime)
                 </p>
 
                 <table>
@@ -315,7 +337,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {currentWorkouts.map(video => (
+                        {currentLongform.map(video => (
                             <tr key={video.videoId}>
                                 <td className="title-cell">{video.title}</td>
                                 <td>{(video.views || 0).toLocaleString()}</td>
@@ -333,7 +355,7 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                                         `${(video.watchTimeMinutes || 0).toLocaleString()} min`
                                     )}
                                 </td>
-                                <td>{formatDuration(video.avgViewDuration)}</td>
+                                <td>{formatDuration(getRetention(video).duration)}</td>
                                 <td>
                                     {video.evergreenScore !== undefined && video.evergreenScore !== null
                                         ? `${parseFloat(video.evergreenScore).toFixed(1)}%`
@@ -345,28 +367,28 @@ function VideoScorecard({ videos, channelAvgDuration }) {
                     </tbody>
                 </table>
 
-                {/* Workouts Pagination */}
-                {workoutsTotalPages > 1 && (
+                {/* Long-form Pagination */}
+                {longformTotalPages > 1 && (
                     <div className="pagination">
                         <button
-                            onClick={() => setWorkoutsPage(prev => Math.max(prev - 1, 1))}
-                            disabled={workoutsPage === 1}
+                            onClick={() => setLongformPage(prev => Math.max(prev - 1, 1))}
+                            disabled={longformPage === 1}
                             className="page-button"
                         >
                             Previous
                         </button>
-                        {[...Array(workoutsTotalPages)].map((_, index) => (
+                        {[...Array(longformTotalPages)].map((_, index) => (
                             <button
                                 key={index + 1}
-                                onClick={() => setWorkoutsPage(index + 1)}
-                                className={`page-button ${workoutsPage === index + 1 ? 'active' : ''}`}
+                                onClick={() => setLongformPage(index + 1)}
+                                className={`page-button ${longformPage === index + 1 ? 'active' : ''}`}
                             >
                                 {index + 1}
                             </button>
                         ))}
                         <button
-                            onClick={() => setWorkoutsPage(prev => Math.min(prev + 1, workoutsTotalPages))}
-                            disabled={workoutsPage === workoutsTotalPages}
+                            onClick={() => setLongformPage(prev => Math.min(prev + 1, longformTotalPages))}
+                            disabled={longformPage === longformTotalPages}
                             className="page-button"
                         >
                             Next

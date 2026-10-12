@@ -147,7 +147,7 @@ function App() {
             Shows how effectively your content converts viewers into subscribers over a rolling 28-day window.
             Calculation: (Subscribers gained in last 28 days ÷ Views in last 28 days) × 1,000.
             This measures overall subscriber growth efficiency - higher numbers mean viewers find your content valuable enough to subscribe.
-            For funnel effectiveness (Shorts → Workouts), see the Traffic Sources section below. Industry benchmark: 2-5 for small channels.
+            For funnel effectiveness (Shorts → Long-form), see the Traffic Sources section below. Industry benchmark: 2-5 for small channels.
           </p>
 
           <div className="conversion-content">

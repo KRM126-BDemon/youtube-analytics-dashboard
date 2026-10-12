@@ -2,6 +2,9 @@ import React from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './TrafficSources.css';
 
+// A video is a Short if it is 3 minutes (180 seconds) or less; anything longer is Long-form.
+const SHORT_MAX_SECONDS = 180;
+
 function TrafficSources({ videos }) {
     if (!videos || videos.length === 0) {
         return null;
@@ -18,23 +21,23 @@ function TrafficSources({ videos }) {
                     <p className="pending-title">⏳ Traffic Data Collection Active</p>
                     <p className="pending-description">
                         Traffic source tracking is now running! Check back tomorrow to see where your views are coming from.
-                        This will help you understand if Shorts are driving traffic to your Workouts.
+                        This will help you understand if Shorts are driving traffic to your Long-form videos.
                     </p>
                 </div>
             </div>
         );
     }
 
-    // Separate Shorts and Workouts (with and without traffic data)
-    const allShorts = videos.filter(v => v.durationSeconds < 180);
-    const allWorkouts = videos.filter(v => v.durationSeconds >= 180);
+    // Separate Shorts and Long-form (with and without traffic data)
+    const allShorts = videos.filter(v => v.durationSeconds <= SHORT_MAX_SECONDS);
+    const allLongform = videos.filter(v => v.durationSeconds > SHORT_MAX_SECONDS);
 
-    const shorts = videosWithTraffic.filter(v => v.durationSeconds < 180);
-    const workouts = videosWithTraffic.filter(v => v.durationSeconds >= 180);
+    const shorts = videosWithTraffic.filter(v => v.durationSeconds <= SHORT_MAX_SECONDS);
+    const longform = videosWithTraffic.filter(v => v.durationSeconds > SHORT_MAX_SECONDS);
 
     // Calculate coverage percentages
     const shortsCoverage = allShorts.length > 0 ? ((shorts.length / allShorts.length) * 100).toFixed(0) : 0;
-    const workoutsCoverage = allWorkouts.length > 0 ? ((workouts.length / allWorkouts.length) * 100).toFixed(0) : 0;
+    const longformCoverage = allLongform.length > 0 ? ((longform.length / allLongform.length) * 100).toFixed(0) : 0;
 
     // Aggregate traffic sources for Shorts
     const shortsTraffic = {};
@@ -44,11 +47,11 @@ function TrafficSources({ videos }) {
         });
     });
 
-    // Aggregate traffic sources for Workouts
-    const workoutsTraffic = {};
-    workouts.forEach(video => {
+    // Aggregate traffic sources for Long-form
+    const longformTraffic = {};
+    longform.forEach(video => {
         Object.entries(video.trafficSources).forEach(([source, views]) => {
-            workoutsTraffic[source] = (workoutsTraffic[source] || 0) + views;
+            longformTraffic[source] = (longformTraffic[source] || 0) + views;
         });
     });
 
@@ -88,7 +91,7 @@ function TrafficSources({ videos }) {
         }))
         .sort((a, b) => b.views - a.views);
 
-    const workoutsChartData = Object.entries(workoutsTraffic)
+    const longformChartData = Object.entries(longformTraffic)
         .map(([source, views]) => ({
             source: formatSourceName(source),
             views: views
@@ -116,7 +119,7 @@ function TrafficSources({ videos }) {
 
     // Calculate total views for percentages
     const shortsTotal = shortsChartData.reduce((sum, item) => sum + item.views, 0);
-    const workoutsTotal = workoutsChartData.reduce((sum, item) => sum + item.views, 0);
+    const longformTotal = longformChartData.reduce((sum, item) => sum + item.views, 0);
 
     // Custom label for pie chart
     const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
@@ -133,11 +136,15 @@ function TrafficSources({ videos }) {
 
     return (
         <div className="traffic-sources-section">
-            <h2>Traffic Source Analysis: Shorts vs Workouts</h2>
+            <h2>Traffic Source Analysis: Shorts vs Long-form</h2>
             <p className="chart-description">
-                Shows where your lifetime views come from (all-time data since publication). <strong>Shorts</strong> should get high "Shorts Feed" (the dedicated Shorts discovery feed).
-                <strong> Workouts</strong> should get high "Suggested Videos" (your funnel working). This tells you if your
-                Shorts strategy is driving traffic to Workouts.
+                Shows where your views came from over the last 28 days. <strong>Shorts</strong> should get high "Shorts Feed" (the dedicated Shorts discovery feed).
+                <strong> Long-form videos</strong> should get high "Suggested Videos" (your funnel working). This tells you if your
+                Shorts strategy is driving traffic to your Long-form videos.
+            </p>
+            <p className="chart-description">
+                Based on {shorts.length} of {allShorts.length} Shorts and {longform.length} of {allLongform.length} Long-form videos.
+                Videos with no views in the last 28 days have no traffic data and are left out.
             </p>
 
             {/* Pie Charts */}
@@ -172,12 +179,12 @@ function TrafficSources({ videos }) {
                 </div>
 
                 <div className="traffic-chart-container">
-                    <h3>Workouts: Traffic Sources</h3>
-                    {workoutsChartData.length > 0 ? (
+                    <h3>Long-form: Traffic Sources</h3>
+                    {longformChartData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
                                 <Pie
-                                    data={workoutsChartData}
+                                    data={longformChartData}
                                     cx="50%"
                                     cy="50%"
                                     labelLine={false}
@@ -187,7 +194,7 @@ function TrafficSources({ videos }) {
                                     dataKey="views"
                                     nameKey="source"
                                 >
-                                    {workoutsChartData.map((entry, index) => (
+                                    {longformChartData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
@@ -196,7 +203,7 @@ function TrafficSources({ videos }) {
                             </PieChart>
                         </ResponsiveContainer>
                     ) : (
-                        <p className="no-data">No traffic data available for Workouts yet</p>
+                        <p className="no-data">No traffic data available for Long-form videos yet</p>
                     )}
                 </div>
             </div>
@@ -206,7 +213,7 @@ function TrafficSources({ videos }) {
                 <h3>Side-by-Side Comparison</h3>
                 <ResponsiveContainer width="100%" height={400}>
                     <BarChart
-                        data={prepareComparisonData(shortsTraffic, workoutsTraffic, formatSourceName).filter(item =>
+                        data={prepareComparisonData(shortsTraffic, longformTraffic, formatSourceName).filter(item =>
                             item.source !== 'Shorts Feed' && item.source !== 'Ads'
                         )}
                         margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
@@ -217,16 +224,16 @@ function TrafficSources({ videos }) {
                         <Tooltip formatter={(value) => value.toLocaleString()} />
                         <Legend verticalAlign="top" height={36} />
                         <Bar dataKey="shorts" fill="#1A7EF7" name="Shorts" />
-                        <Bar dataKey="workouts" fill="#F7931A" name="Workouts" />
+                        <Bar dataKey="longform" fill="#F7931A" name="Long-form" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
 
             {/* Insights Box */}
-            {workoutsChartData.length > 0 && (
+            {longformChartData.length > 0 && (
                 <div className="traffic-insights">
                     <h3>📊 Key Insights</h3>
-                    {renderInsights(shortsChartData, workoutsChartData, shortsTotal, workoutsTotal)}
+                    {renderInsights(shortsChartData, longformChartData, shortsTotal, longformTotal)}
                 </div>
             )}
         </div>
@@ -234,30 +241,30 @@ function TrafficSources({ videos }) {
 }
 
 // Helper function to prepare comparison data
-function prepareComparisonData(shortsTraffic, workoutsTraffic, formatSourceName) {
-    const allSources = new Set([...Object.keys(shortsTraffic), ...Object.keys(workoutsTraffic)]);
+function prepareComparisonData(shortsTraffic, longformTraffic, formatSourceName) {
+    const allSources = new Set([...Object.keys(shortsTraffic), ...Object.keys(longformTraffic)]);
     return Array.from(allSources).map(source => ({
         source: formatSourceName(source),
         shorts: shortsTraffic[source] || 0,
-        workouts: workoutsTraffic[source] || 0
-    })).sort((a, b) => (b.shorts + b.workouts) - (a.shorts + a.workouts));
+        longform: longformTraffic[source] || 0
+    })).sort((a, b) => (b.shorts + b.longform) - (a.shorts + a.longform));
 }
 
 // Helper function to generate insights
-function renderInsights(shortsData, workoutsData, shortsTotal, workoutsTotal) {
+function renderInsights(shortsData, longformData, shortsTotal, longformTotal) {
     const insights = [];
 
-    // Check if Workouts have high "Suggested Videos" traffic
-    const workoutsSuggested = workoutsData.find(d => d.source === 'Suggested Videos');
-    if (workoutsSuggested) {
-        const suggestedPercent = ((workoutsSuggested.views / workoutsTotal) * 100).toFixed(0);
+    // Check if Long-form videos have high "Suggested Videos" traffic
+    const longformSuggested = longformData.find(d => d.source === 'Suggested Videos');
+    if (longformSuggested) {
+        const suggestedPercent = ((longformSuggested.views / longformTotal) * 100).toFixed(0);
         if (suggestedPercent >= 30) {
             insights.push(
-                <p key="suggested-good">✅ <strong>Your funnel is working!</strong> {suggestedPercent}% of Workout views come from Suggested Videos - YouTube is recommending your Workouts after viewers watch other content (likely your Shorts).</p>
+                <p key="suggested-good">✅ <strong>Your funnel is working!</strong> {suggestedPercent}% of Long-form views come from Suggested Videos - YouTube is recommending your Long-form videos after viewers watch other content (likely your Shorts).</p>
             );
         } else {
             insights.push(
-                <p key="suggested-low">⚠️ Only {suggestedPercent}% of Workout views come from Suggested Videos. Consider adding more calls-to-action in your Shorts to drive viewers to watch full Workouts.</p>
+                <p key="suggested-low">⚠️ Only {suggestedPercent}% of Long-form views come from Suggested Videos. Consider adding more calls-to-action in your Shorts to drive viewers to watch full Long-form videos.</p>
             );
         }
     }
@@ -274,19 +281,19 @@ function renderInsights(shortsData, workoutsData, shortsTotal, workoutsTotal) {
     }
 
     // Check for YouTube Search traffic
-    const workoutsSearch = workoutsData.find(d => d.source === 'YouTube Search');
-    if (workoutsSearch) {
-        const searchPercent = ((workoutsSearch.views / workoutsTotal) * 100).toFixed(0);
+    const longformSearch = longformData.find(d => d.source === 'YouTube Search');
+    if (longformSearch) {
+        const searchPercent = ((longformSearch.views / longformTotal) * 100).toFixed(0);
         if (searchPercent >= 20) {
             insights.push(
-                <p key="search-good">🔍 {searchPercent}% of Workout views come from YouTube Search - your titles and descriptions are SEO-optimized. Keep using searchable keywords!</p>
+                <p key="search-good">🔍 {searchPercent}% of Long-form views come from YouTube Search - your titles and descriptions are SEO-optimized. Keep using searchable keywords!</p>
             );
         }
     }
 
     if (insights.length === 0) {
         insights.push(
-            <p key="default">Keep building content! As you publish more Shorts and Workouts, these traffic patterns will become clearer and show you what's working.</p>
+            <p key="default">Keep building content! As you publish more Shorts and Long-form videos, these traffic patterns will become clearer and show you what's working.</p>
         );
     }
 
